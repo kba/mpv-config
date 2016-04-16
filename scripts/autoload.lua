@@ -2,8 +2,8 @@
 -- the currently played file. It does so by scanning the directory a file is
 -- located in when starting playback. It sorts the directory entries
 -- alphabetically, and adds entries before and after the current file to
--- the internal playlist. (It stops if the it would add an already existing
--- playlist entry at the same position - this makes it "stable".)
+-- the internal playlist. (It stops if the file it would add an already
+-- existing playlist entry at the same position - this makes it "stable".)
 -- Add at most 5 * 2 files when starting a file (before + after).
 MAXENTRIES = 5
 
@@ -11,6 +11,10 @@ function Set (t)
     local set = {}
     for _, v in pairs(t) do set[v] = true end
     return set
+end
+
+function string.ends(String,End)
+   return End=='' or string.sub(String,-string.len(End))==End
 end
 
 EXTENSIONS = Set {
@@ -44,27 +48,27 @@ end
 function find_and_add_entries()
     local path = mp.get_property("path", "")
     local dir, filename = mputils.split_path(path)
-    if #dir == 0 then
-        return
+    print(dir)
+    print(filename)
+    cmd = 'find .. '
+    clauses = {}
+    ext_idx = 1
+    for ext,_ in pairs(EXTENSIONS) do
+        clauses[ext_idx] = "-name '*." .. ext .. "'"
+        ext_idx = ext_idx + 1
     end
-
-    local files = mputils.readdir(dir, "files")
-    if files == nil then
-        return
+    cmd = cmd .. table.concat(clauses, ' -o ')
+    print(cmd)
+    f = io.popen(cmd)
+    files = {}
+    for line in f:lines() do
+        -- print(string.len(line))
+        table.insert(files, line)
     end
-    table.filter(files, function (v, k)
-        local ext = get_extension(v)
-        if ext == nil then
-            return false
-        end
-        return EXTENSIONS[string.lower(ext)]
-    end)
-    table.sort(files, function (a, b)
-        return string.lower(a) < string.lower(b)
-    end)
+    f:close()
 
-    if dir == "." then
-        dir = ""
+    if dir == '.' then
+        dir = ''
     end
 
     local pl = mp.get_property_native("playlist", {})
@@ -72,7 +76,7 @@ function find_and_add_entries()
     -- Find the current pl entry (dir+"/"+filename) in the sorted dir list
     local current
     for i = 1, #files do
-        if files[i] == filename then
+        if string.ends(files[i], filename) then
             current = i
             break
         end
