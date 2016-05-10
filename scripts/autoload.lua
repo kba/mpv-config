@@ -7,9 +7,10 @@
 
 --luacheck: globals mp
 mputils = require 'mp.utils'
+local log = require('mp.msg').log
 
 -- Add at most 5 * 2 files when starting a file (before + after).
-MAXENTRIES = 5
+MAXENTRIES = 20
 AUTOLOADED = false
 EXTENSIONS = {
     'mkv', 'avi', 'mp4', 'ogv', 'webm', 'rmvb', 'flv', 'wmv', 'mpeg', 'mpg', 'm4v', '3gp',
@@ -76,7 +77,6 @@ function exec_find(filename, basedir, maxdepth)
         build_clauses()
     }
     local cmd = table.concat(find_cmd, ' ')
-    -- print(cmd)
     local f = io.popen(cmd)
     for line in f:lines() do
         -- remove './' from beginning of path if exists
@@ -86,6 +86,7 @@ function exec_find(filename, basedir, maxdepth)
         table.insert(files, line)
     end
     f:close()
+    table.sort(files)
 
     -- Find the current playlist entry (dir+"/"+filename) in the sorted dir list
     for i = 1, #files do
@@ -110,16 +111,22 @@ function find_and_add_entries()
 
     local path = mp.get_property("path", "")
     local dir, filename = mputils.split_path(path)
+    print(dir)
+    print(filename)
+    -- if 1 + 1 == 2 then
+    --     return 
+    -- end
     if dir == '.' then
         dir = ''
     end
 
     local files, current = exec_find(filename, '.', 1)
+
     if #files == 1 then
-        print("Looking in parent dir")
+        log('DEBUG', "Looking in parent dir")
         files, current = exec_find(filename, '..', 2)
     end
-    print (current .. ' / ' .. #files)
+    log('INFO', 'Playlist Position: ' .. current .. ' / ' .. #files)
 
     -- current = current or 1
     local playlist = mp.get_property_native("playlist", {})
